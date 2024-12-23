@@ -26,6 +26,7 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest, LettaStreamingRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
+from letta.schemas.autorag_response import AutoragResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
     ArchivalMemorySummary,
@@ -146,7 +147,8 @@ class AbstractClient(object):
     def send_message(
         self,
         message: str,
-        role: str,
+        chat_summary: str,
+        role: Optional[str] = "user" ,
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[bool] = False,
@@ -848,7 +850,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str, chat_summary: str) -> LettaResponse:
         """
         Send a message to an agent as a user
 
@@ -859,7 +861,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (LettaResponse): Response from the agent
         """
-        return self.send_message(agent_id=agent_id, message=message, role="user")
+        return self.send_message(agent_id=agent_id, message=message, chat_summary=chat_summary,role="user")
 
     def save(self):
         raise NotImplementedError
@@ -943,17 +945,49 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
         return [Message(**message) for message in response.json()]
+    def run_query_autorag(
+            self,
+            query: str, 
+            chat_history: str,
+            core_memory: str) -> AutoragResponse:
 
+        BASE_URL = "http://3.96.139.191:8000"  # Replace with the actual base URL of the API
+
+        # def run_query(query,chat_summary='', core_memory='', result_column="generated_texts"):
+        
+        core_memory = ''
+        chat_summary = chat_history
+
+        result_column="generated_texts"
+
+        url = f"{BASE_URL}/v1/run"
+        payload = {
+            "query": query,
+            "chat_summary" : chat_summary,
+            "core_memory": core_memory,
+            "result_column" : result_column
+
+        }
+
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            response.raise_for_status()
+
+        return response
+    
     def send_message(
         self,
         message: str,
-        role: str,
+        chat_summary: str,
+        role: Optional[str] = "user",
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-    ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
+    ) -> Union[AutoragResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
 
@@ -979,6 +1013,8 @@ class RESTClient(AbstractClient):
             request = LettaStreamingRequest(messages=messages, stream_tokens=stream_tokens)
             return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/stream", request.model_dump(), self.headers)
         else:
+
+            # Sending the Request to the Letta Agent
             request = LettaRequest(messages=messages)
             response = requests.post(
                 f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers
@@ -986,6 +1022,13 @@ class RESTClient(AbstractClient):
             if response.status_code != 200:
                 raise ValueError(f"Failed to send message: {response.text}")
             response = LettaResponse(**response.json())
+
+            
+            # Now, let's execute the AutoRAG function calls
+            core_memory = self.get_core_memory(agent_id).get_block('human')
+            
+            autorag_response = self.run_query_autorag(message, chat_summary, core_memory)
+
 
             # simplify messages
             # if not include_full_message:
@@ -995,7 +1038,7 @@ class RESTClient(AbstractClient):
             #         messages += m.to_letta_message()
             #     response.messages = messages
 
-            return response
+            return autorag_response
 
     def send_message_async(
         self,
