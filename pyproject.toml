@@ -71,8 +71,8 @@ langchain = {version = "^0.3.7", optional = true}
 sentry-sdk = {extras = ["fastapi"], version = "2.19.1"}
 rich = "^13.9.4"
 brotli = "^1.1.0"
-grpcio = "1.67.1"
-grpcio-tools = "1.67.1"
+grpcio = "1.63.0"
+grpcio-tools = "1.63.0"
 llama-index = "^0.12.2"
 llama-index-embeddings-openai = "^0.3.1"
 e2b-code-interpreter = {version = "^1.0.3", optional = true}
