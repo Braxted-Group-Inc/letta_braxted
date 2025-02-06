@@ -21,7 +21,7 @@ questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
 black = {extras = ["jupyter"], version = "^24.2.0"}
-setuptools = "^68.2.2"
+grpcio = ">=1.49.1,<=1.68.1"
 datasets = { version = "^2.14.6", optional = true}
 prettytable = "^3.9.0"
 pgvector = { version = "^0.2.3", optional = true }
@@ -71,7 +71,7 @@ langchain = {version = "^0.3.7", optional = true}
 sentry-sdk = {extras = ["fastapi"], version = "2.19.1"}
 rich = "^13.9.4"
 brotli = "^1.1.0"
-grpcio = "^1.68.1"
+grpcio = ">=1.49.1,<=1.68.1"
 grpcio-tools = "^1.68.1"
 llama-index = "^0.12.2"
 llama-index-embeddings-openai = "^0.3.1"
